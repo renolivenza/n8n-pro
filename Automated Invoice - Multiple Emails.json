@@ -1,0 +1,1443 @@
+{
+  "name": "Automated Invoice - Multiple Emails",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "q": "has:attachment {subject:invoice subject:billing}",
+          "readStatus": "unread"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -880,
+        -16
+      ],
+      "id": "01fcb56f-2455-4940-84cc-891cede73004",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the raw content string from the previous node\nconst rawContent = $input.first().json.content;\n\n// Clean up the string (remove leading/trailing whitespace and any extra escapes if present)\nlet cleaned = rawContent.trim();\n\n// Parse the string into a real JavaScript object\nconst parsed = JSON.parse(cleaned);\n\n// Return it as the new item\nreturn [\n  {\n    json: parsed\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        -16
+      ],
+      "id": "d401ee40-8eb7-41c7-a94b-963584c0c599",
+      "name": "Convert content to json file"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "qwen3-vl-flash",
+          "mode": "list",
+          "cachedResultName": "qwen3-vl-flash"
+        },
+        "inputType": "binary",
+        "binaryPropertyName": "attachment_0",
+        "question": "Analyze the attached sales invoice or billing statement image and extract the following information:\n\n1. Sales Invoice Number\n2. Supplier Name\n3. Customer Name\n4. Total Invoice Amount\n5. Currency\n6. PO Number / Purchase Order Number\n\n\nImportant:\n- A \"Sales Invoice\" and \"Billing Statement\" are considered the same type of document for this extraction.\n- Read the information directly from the attached invoice/billing statement image.\n- Do not guess, infer, or invent information.\n- If a field cannot be found or is unclear, return \"N/A\".\n- For the sales invoice number, identify the official invoice number, billing statement number, or equivalent document/reference number printed on the document.\n- For the supplier, identify the company or person that issued the invoice/billing statement.\n- For the customer, identify the company or person being billed.\n- For the total amount, use the final total amount payable on the document, not an individual line-item price or subtotal.\n- For the currency, identify the currency associated with the total invoice amount. Return the currency code when available, such as PHP, USD, EUR, etc.\n- For the PO number, identify the Purchase Order (PO), Purchase Order Number, PO No., Customer PO, or equivalent purchase reference shown on the document.\n- If multiple PO numbers are present, list all of them separated by commas.\n- Preserve the exact invoice number, PO number, supplier name, and customer name as shown on the document.\n- Preserve the currency and amount accurately.\n- Do not include any fields other than those specified below.\n- Return valid JSON only. Do not include markdown, code fences, explanations, or additional text.\n\nReturn the result using ONLY exactly this JSON structure:\n\n{\n  \"sales_invoice_number\": \"Write the sales invoice number\",\n  \"supplier\": \"Write the supplier name\",\n  \"customer\": \"Write the customer name\",\n  \"total_amount\": \"Write the total amount\",\n  \"currency\": \"Write the currency\",\n  \"po_number\": \"Write the purchase order number\"\n\"date of invoice\": \"Write the date of invoice\"\n}",
+        "simplify": false,
+        "visionOptions": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.alibabaCloud",
+      "typeVersion": 1.1,
+      "position": [
+        -704,
+        -16
+      ],
+      "id": "087ac501-522c-4d0a-a6f9-1fae59d70e14",
+      "name": "Analyze image/file",
+      "credentials": {
+        "alibabaCloudApi": {
+          "id": "befyzsDicIUujAq2",
+          "name": "Qwen Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -352,
+        -16
+      ],
+      "id": "c8409c93-f9d7-4cc3-95f8-c1b8769ce0e9",
+      "name": "Search Invoice masterfile",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the incoming sales invoice number\n// from the Code node after the Gmail Trigger\nconst incomingInvoice = String(\n  $('Convert content to json file').first().json.sales_invoice_number ?? ''\n).trim();\n\n// Get all rows returned by Google Sheets\nconst masterfileRows = $input.all();\n\n// Check if the sales invoice number already exists\nconst exists = masterfileRows.some(item => {\n  const masterInvoice = String(\n    item.json['Sales Invoice Number'] ?? ''\n  ).trim();\n\n  return masterInvoice === incomingInvoice;\n});\n\n// Return TRUE or FALSE\nreturn [\n  {\n    json: {\n      sales_invoice_exists: exists\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -16
+      ],
+      "id": "1bd2886b-4d73-464c-a274-668636c79dad",
+      "name": "Checks duplicate files"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "45af3f21-300f-4c15-a617-4eea555726e6",
+              "leftValue": "={{ $json.sales_invoice_exists }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        32,
+        -16
+      ],
+      "id": "7c368001-d003-46f2-a1b4-58caa89db706",
+      "name": "Checks invoice if existing?"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "rvoh88@gmail.com",
+        "subject": "Sales Invoice Processing Review",
+        "message": "=Hello\n\nRequesting for your approval to the details below:\n\nDate of Invoice: {{ $('Get next pending invoice').item.json['Date of Invoice'] }}\n\nSales Invoice number: {{ $('Get next pending invoice').item.json['Sales Invoice Number'] }}\n\nPO Number: {{ $('Get next pending invoice').item.json['PO Number'] }}\n\nSupplier: {{ $('Get next pending invoice').item.json.Supplier }}\n\nCustomer: {{ $('Get next pending invoice').item.json['Customer Name'] }}\n\nTotal Amount: {{ $('Get next pending invoice').item.json.Currency }}{{ $('Get next pending invoice').item.json['Total Amount'] }}\n\n\n\nThank you",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        384
+      ],
+      "id": "e275a275-b054-43fb-b02c-f0830d34ecbb",
+      "name": "Sends details for review and approval",
+      "webhookId": "9c4f7c2c-6a6a-492a-9a69-a1c2c457064d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ac0ecb96-0163-4855-903d-c029bf3b1702",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        80,
+        384
+      ],
+      "id": "97b5186c-d62a-493a-a744-906acafa0f09",
+      "name": "Approved or Disapproved"
+    },
+    {
+      "parameters": {
+        "sendTo": "rvoh89@gmail.com",
+        "subject": "Sales Invoice Processing",
+        "emailType": "text",
+        "message": "=Hello accounting Team,  \n\nKindly process the details below:  \n\nDate of Invoice: {{ $('Get next pending invoice').item.json['Date of Invoice'] }}\n\nSales Invoice number: {{ $('Get next pending invoice').item.json['Sales Invoice Number'] }} \n\nPO Number:  {{ $('Get next pending invoice').item.json['PO Number'] }}\n\nSupplier:  {{ $('Get next pending invoice').item.json.Supplier }}\n\nCustomer: {{ $('Get next pending invoice').item.json['Customer Name'] }}\n\nTotal Amount:  {{ $('Get next pending invoice').item.json.Currency }}{{ $('Get next pending invoice').item.json['Total Amount'] }}\n\n\nThank you",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        816,
+        352
+      ],
+      "id": "8d6b20a6-dc18-4caa-8ad0-e152960cfe6e",
+      "name": "Sends Invoice Details to Accounting Team",
+      "webhookId": "853c557b-197d-4a4c-b55e-53fa58e4368f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "list",
+          "cachedResultName": "Sales Invoice Master List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoice",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "PO Number": "={{ $('Get next pending invoice').item.json['PO Number'] }}",
+            "Sales Invoice Number": "={{ $('Get next pending invoice').item.json['Sales Invoice Number'] }}",
+            "Supplier": "={{ $('Get next pending invoice').item.json.Supplier }}",
+            "Customer Name": "={{ $('Get next pending invoice').item.json['Customer Name'] }}",
+            "Currency": "={{ $('Get next pending invoice').item.json.Currency }}",
+            "Total Amount": "={{ $('Get next pending invoice').item.json['Total Amount'] }}",
+            "Date of Invoice": "={{ $('Get next pending invoice').item.json['Date of Invoice'] }}",
+            "STATUS": "PROCESSED"
+          },
+          "matchingColumns": [
+            "Sales Invoice Number"
+          ],
+          "schema": [
+            {
+              "id": "Date of Invoice",
+              "displayName": "Date of Invoice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PO Number",
+              "displayName": "PO Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sales Invoice Number",
+              "displayName": "Sales Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total Amount",
+              "displayName": "Total Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        352
+      ],
+      "id": "bd3c98cd-9e41-40b4-8c89-4b8a6102edb8",
+      "name": "Updates the Invoice Masterlist",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        176,
+        928
+      ],
+      "id": "f8cc06e0-4faa-4c1c-9013-e00338c4076f",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "rvoh88@gmail.com",
+        "subject": "Error",
+        "emailType": "text",
+        "message": "Workflow: Invoice Approval & Processing Manager \n\nFailed Node: {{ $json.execution?.lastNodeExecuted }} \n\nExecution ID: {{ $json.execution?.id }} \n\nError: {{ $json.execution?.error?.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        944
+      ],
+      "id": "3b169301-e0d3-419b-b3f1-07f8ddbb9ac8",
+      "name": "Send a message",
+      "webhookId": "ff30f487-1011-4ca2-8fdb-961efa8bd1f3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('Convert content to json file').first().json;\nconst gmail = $('Gmail Trigger').first().json;\n\nreturn {\n  json: {\n    queue_id: `Q-${Date.now()}`,\n\n    gmail_message_id:\n      gmail.id ||\n      gmail.messageId ||\n      gmail.message_id ||\n      '',\n\n    sales_invoice_number:\n      invoice.sales_invoice_number || '',\n\n    invoice_date:\n      invoice['date of invoice'] || '',\n\n    supplier:\n      invoice.supplier || '',\n\n    customer:\n      invoice.customer || '',\n\n    total_amount:\n      invoice.total_amount || '',\n\n    currency:\n      invoice.currency || '',\n\n    po_number:\n      invoice.po_number || '',\n\n    received_at: new Date().toISOString(),\n\n    status: 'PENDING',\n\n    reviewed_at: ''\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        80
+      ],
+      "id": "3ef97890-38b0-480f-9174-fb60f5fd7452",
+      "name": "Prepare a Queue Record"
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        80
+      ],
+      "id": "eb4e177a-ae5d-45d1-9181-55e051ab6dd6",
+      "name": "Marks the message as Read1",
+      "webhookId": "a7cf4a64-e495-4b3f-b937-e82d6133c569",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        -128
+      ],
+      "id": "19134e0b-2575-4454-bb9b-a8c0b35494fb",
+      "name": "Marks the message as Read2",
+      "webhookId": "a7cf4a64-e495-4b3f-b937-e82d6133c569",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -912,
+        384
+      ],
+      "id": "c13def43-2a2d-4856-b84e-5a96c4e194f6",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1638372027,
+          "mode": "list",
+          "cachedResultName": "Queud Invoice Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=1638372027"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -720,
+        384
+      ],
+      "id": "201e00b3-9cd2-44c4-9ebf-90b1d371f878",
+      "name": "Get pending invoice",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nif (rows.length === 0) {\n  return [];\n}\n\n// Normalize the STATUS column\nconst normalized = rows.map(item => ({\n  ...item,\n  normalizedStatus: String(item.json['STATUS'] || '')\n    .trim()\n    .toUpperCase()\n}));\n\n// Check if an invoice is already being reviewed\nconst inReview = normalized.find(\n  item => item.normalizedStatus === 'IN_REVIEW'\n);\n\n// If one invoice is already under review, do not send another\nif (inReview) {\n  return [];\n}\n\n// Get all pending invoices\nconst pending = normalized.filter(\n  item => item.normalizedStatus === 'PENDING'\n);\n\n// Stop if there are no pending invoices\nif (pending.length === 0) {\n  return [];\n}\n\n// Sort according to Time Received\n// Oldest invoice will be first\npending.sort((a, b) => {\n  return new Date(a.json['Time Received']) -\n         new Date(b.json['Time Received']);\n});\n\n// Return only the oldest pending invoice\nreturn [\n  {\n    json: pending[0].json\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        384
+      ],
+      "id": "77a7432c-c5c2-4652-b3c0-e16b7ff0ec5c",
+      "name": "Get next pending invoice"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1638372027,
+          "mode": "list",
+          "cachedResultName": "Queud Invoice Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=1638372027"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "STATUS": "DISAPPROVED",
+            "QueueID": "={{ $('Get next pending invoice').item.json.QueueID }}"
+          },
+          "matchingColumns": [
+            "QueueID"
+          ],
+          "schema": [
+            {
+              "id": "QueueID",
+              "displayName": "QueueID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MessageID",
+              "displayName": "MessageID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Date of Invoice",
+              "displayName": "Date of Invoice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "PO Number",
+              "displayName": "PO Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sales Invoice Number",
+              "displayName": "Sales Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Total Amount",
+              "displayName": "Total Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Received",
+              "displayName": "Time Received",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        576
+      ],
+      "id": "0a2d5bff-ab4e-40c9-9716-ab39ff4a568a",
+      "name": "Update lists of Queued Invoice - DISAPPROVED",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1638372027,
+          "mode": "list",
+          "cachedResultName": "Queud Invoice Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=1638372027"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "STATUS": "IN_REVIEW",
+            "QueueID": "={{ $json.QueueID }}"
+          },
+          "matchingColumns": [
+            "QueueID"
+          ],
+          "schema": [
+            {
+              "id": "QueueID",
+              "displayName": "QueueID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MessageID",
+              "displayName": "MessageID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Date of Invoice",
+              "displayName": "Date of Invoice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "PO Number",
+              "displayName": "PO Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sales Invoice Number",
+              "displayName": "Sales Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Total Amount",
+              "displayName": "Total Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Received",
+              "displayName": "Time Received",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -336,
+        384
+      ],
+      "id": "2b3f230f-4823-4eae-8c6c-5a032a3a6c02",
+      "name": "Update lists of Queued Invoice - IN_REVIEW",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1638372027,
+          "mode": "list",
+          "cachedResultName": "Queud Invoice Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=1638372027"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "QueueID": "={{ $('Get next pending invoice').item.json.QueueID }}",
+            "STATUS": "=PROCESSED"
+          },
+          "matchingColumns": [
+            "QueueID"
+          ],
+          "schema": [
+            {
+              "id": "QueueID",
+              "displayName": "QueueID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MessageID",
+              "displayName": "MessageID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Date of Invoice",
+              "displayName": "Date of Invoice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "PO Number",
+              "displayName": "PO Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sales Invoice Number",
+              "displayName": "Sales Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Total Amount",
+              "displayName": "Total Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Received",
+              "displayName": "Time Received",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        560,
+        352
+      ],
+      "id": "f1c8887b-9780-45e1-a4e6-cc37e2e9bf04",
+      "name": "Update lists of Queued Invoice - PROCESSED",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1638372027,
+          "mode": "list",
+          "cachedResultName": "Queud Invoice Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZlkCWDCFuQf2vZMlyZW-OX-XJWnAX4A-zUT5MuKPWE/edit#gid=1638372027"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "QueueID": "={{ $json.queue_id }}",
+            "MessageID": "={{ $json.gmail_message_id }}",
+            "Date of Invoice": "={{ $('Convert content to json file').item.json['date of invoice'] }}",
+            "PO Number": "={{ $json.po_number }}",
+            "Sales Invoice Number": "={{ $json.sales_invoice_number }}",
+            "Supplier": "={{ $json.supplier }}",
+            "Customer Name": "={{ $json.customer }}",
+            "Currency": "={{ $json.currency }}",
+            "Total Amount": "={{ $json.total_amount }}",
+            "Time Received": "={{ $json.received_at }}",
+            "STATUS": "={{ $json.status }}"
+          },
+          "matchingColumns": [
+            "QueueID"
+          ],
+          "schema": [
+            {
+              "id": "QueueID",
+              "displayName": "QueueID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MessageID",
+              "displayName": "MessageID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date of Invoice",
+              "displayName": "Date of Invoice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PO Number",
+              "displayName": "PO Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sales Invoice Number",
+              "displayName": "Sales Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total Amount",
+              "displayName": "Total Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time Received",
+              "displayName": "Time Received",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        80
+      ],
+      "id": "7a998451-2c03-499e-8943-35dc272b8483",
+      "name": "Update lists of Queued Invoice - PENDING",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Workflow 1 — AI Invoice Intake & Queue Manager",
+        "height": 432,
+        "width": 1920
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -928,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "84e32750-b96e-485a-8760-7ca037a839b2",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Workflow 2 — Invoice Approval & Processing Manager",
+        "height": 480,
+        "width": 2032,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -960,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "b199e742-1d8e-4aa7-942f-ef22fd9e69f0",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analyze image/file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert content to json file": {
+      "main": [
+        [
+          {
+            "node": "Search Invoice masterfile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image/file": {
+      "main": [
+        [
+          {
+            "node": "Convert content to json file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Invoice masterfile": {
+      "main": [
+        [
+          {
+            "node": "Checks duplicate files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checks duplicate files": {
+      "main": [
+        [
+          {
+            "node": "Checks invoice if existing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checks invoice if existing?": {
+      "main": [
+        [
+          {
+            "node": "Marks the message as Read2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare a Queue Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sends details for review and approval": {
+      "main": [
+        [
+          {
+            "node": "Approved or Disapproved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved or Disapproved": {
+      "main": [
+        [
+          {
+            "node": "Updates the Invoice Masterlist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update lists of Queued Invoice - DISAPPROVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sends Invoice Details to Accounting Team": {
+      "main": [
+        []
+      ]
+    },
+    "Updates the Invoice Masterlist": {
+      "main": [
+        [
+          {
+            "node": "Update lists of Queued Invoice - PROCESSED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare a Queue Record": {
+      "main": [
+        [
+          {
+            "node": "Update lists of Queued Invoice - PENDING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get pending invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get pending invoice": {
+      "main": [
+        [
+          {
+            "node": "Get next pending invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get next pending invoice": {
+      "main": [
+        [
+          {
+            "node": "Update lists of Queued Invoice - IN_REVIEW",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update lists of Queued Invoice - IN_REVIEW": {
+      "main": [
+        [
+          {
+            "node": "Sends details for review and approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update lists of Queued Invoice - PROCESSED": {
+      "main": [
+        [
+          {
+            "node": "Sends Invoice Details to Accounting Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update lists of Queued Invoice - PENDING": {
+      "main": [
+        [
+          {
+            "node": "Marks the message as Read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5d129af0-f7ff-4a5b-8fad-c74728b30a05",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "10076ffa38d207e8af7b3bfaa909d8edf6b78dadbb75bf662a7af753bfe2f084"
+  },
+  "nodeGroups": [],
+  "id": "NZZmszCvYpy4RXSl",
+  "tags": []
+}
