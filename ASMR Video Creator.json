@@ -1,0 +1,152 @@
+{
+  "name": "ASMR Video Creator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ce700147-8df0-47f5-9687-4a683857b062",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\"prompt\": \"<insert generated prompt here>\",\n\"videoTitle\": \" <insert generated video title here>\",\n\"videoDescription\": \"<insert generated video description here>\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        208
+      ],
+      "id": "bae4babb-8c3c-476a-9a30-26356a5fc28e",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        208
+      ],
+      "id": "a3dbbdb8-11f1-43d7-869d-6542e5d9cf65",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "kHgTSO9uP4xNLcll",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "generate ASMR.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an expert prompt engineer specializing in hyper-realistic ASMR food slicing videos.\nCreate a complete, ready-to-use video generation prompt based on the following template. Replace the fruit with a completely different real fruit each time (never repeat Rambutan). Choose interesting, visually appealing fruits with distinct shapes, colors, and textures such as mango, kiwi, dragon fruit, passion fruit, lychee, pomegranate, durian, fig, persimmon, guava, starfruit, cherimoya, etc.\nRequirements for every generated prompt:\n\nThe video must be a real vertical smartphone video recorded in portrait mode (9:16). The camera must be physically vertical. Do NOT simulate 9:16 by rotating horizontal footage.\nHyper-realistic cinematic close-up of a whole, full-shaped [FRUIT] made of transparent jelly glass with a soft light-colored outer hue (for example, pale yellow for a banana, light red for an apple, gentle orange for a carrot — choose an appropriate soft hue for the chosen fruit).\nThe glass fruit is perfectly centered on a wooden cutting board, glowing subtly under studio lighting.\nA human hand is clearly visible, holding a sharp stainless steel knife just above the fruit, ready to slice.\nIn slow motion, the knife makes the first clean slice through the glass fruit — the front section breaks off cleanly with delicate jelly-crack sounds. Then the knife immediately makes a second slice, cutting another piece smoothly. Transparent shards scatter lightly from both cuts.\nASMR slicing sounds only — no talking, no music. Only the hand, knife, and fruit are visible.\nUltra-sharp macro lens, shallow depth of field, cinematic lighting, 4K, 30 FPS.\n\nAt the end of the prompt, always add:\n\nA catchy, engaging Video Title (short and clickbait-friendly, optimized for YouTube/Shorts/TikTok)\nA descriptive Video Caption (including hashtags)\n\nGenerate one full prompt per response, varying the fruit every time I ask for a new one. Make each version unique and highly detailed.\nStart now by generating the first prompt with a new fruit.\n\nMake your output in JSON format:\n{\n\"prompt\": \"<insert generated prompt here>\",\n\"videoTitle\": \" <insert generated video title here>\",\n\"videoDescription\": \"<insert generated video description here>\"\n}\n\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        208,
+        0
+      ],
+      "id": "98361beb-173c-4451-aa29-3435a13662bf",
+      "name": "Generate prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "d29976ce-8406-4b1e-8155-107d80dd0867",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate prompt",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate prompt",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate prompt": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6af5e8c3-79b6-4aa0-89f1-e50d7199f87d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5f198d2bd3575ff67af8ed9ab0f3b3af60e4a2f536755adb968fd58ab0f620aa"
+  },
+  "nodeGroups": [],
+  "id": "MkgNBVnuedlxp8ae",
+  "tags": []
+}

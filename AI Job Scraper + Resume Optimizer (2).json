@@ -1,0 +1,870 @@
+{
+  "name": "AI Job Scraper + Resume Optimizer",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": [
+          "app_mention"
+        ],
+        "channelId": {
+          "__rl": true,
+          "value": "C0BGPF0U5KR",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "47daf198-bc38-467d-946c-c970a4e66e32",
+      "name": "Slack Trigger",
+      "webhookId": "da1dc453-c4e0-4d37-bb88-de39be3e756c",
+      "credentials": {
+        "slackApi": {
+          "id": "K5fFmtucIq1L2JPC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an AI agent tasked with determining whether the following user query is related to searching for a job: \"{{ $json.blocks[0].elements[0].elements[1].text.trim() }}\". Analyze the query for keywords, phrases, or context that indicate a job search, such as terms like \"job,\" \"career,\" \"employment,\" \"hiring,\" \"position,\" \"vacancy,\" \"apply,\" \"resume,\" or specific job titles. Also consider questions about job applications, interviews, or job requirements. If the query indicates a job search, return the text \"YES\". If the query is unrelated to a job search, return \"NO\". Provide only the response without additional explanation.\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "72e57cce-2dc6-4391-814e-37e0fa91f752",
+      "name": "Check if the query is valid",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PHlXlqzJFsCjSxt3",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BGPF0U5KR",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "text": "Invalid Query/ No Results Found",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1360,
+        176
+      ],
+      "id": "d85736ea-50cb-4291-b7e1-844b00408abf",
+      "name": "Invalid Query",
+      "webhookId": "2f02e6fb-fcd9-4ff7-b07b-12a175542527",
+      "credentials": {
+        "slackApi": {
+          "id": "K5fFmtucIq1L2JPC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BGPF0U5KR",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "text": "=Searching  {{ $('Slack Trigger').item.json.blocks[0].elements[0].elements[1].text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        752,
+        -32
+      ],
+      "id": "2d6e178e-c5e0-45ba-8604-30f773dfc774",
+      "name": "Send searching for jobs",
+      "webhookId": "7cab72b0-bbae-4a6d-9b98-814329b67242",
+      "credentials": {
+        "slackApi": {
+          "id": "K5fFmtucIq1L2JPC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://jsearch.p.rapidapi.com/search-v2",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Slack Trigger').item.json.blocks[0].elements[0].elements[1].text }}"
+            },
+            {
+              "name": "num_pages",
+              "value": "1"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            },
+            {
+              "name": "date_posted",
+              "value": "3days"
+            },
+            {
+              "name": "work_from_home",
+              "value": "true"
+            },
+            {
+              "name": "employment_types",
+              "value": "FULLTIME, CONTRACTOR, PARTTIME"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "jsearch.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "669bd7a278msh5674c3f011ceaf6p1d4203jsn5aaabbd1bba5"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        960,
+        -32
+      ],
+      "id": "ee0cb161-c393-436c-ad5e-534a387d1b60",
+      "name": "Get all jobs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fa4e9401-b64c-44a5-96d8-86a80d2730f9",
+              "leftValue": "={{ $json.content.parts[0].text }}",
+              "rightValue": "YES",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        544,
+        0
+      ],
+      "id": "ad4e31e0-4441-4e12-b112-62ea8b8be1e7",
+      "name": "Check if query is valid?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f357ea25-7b4a-48ce-bb76-914e40143d23",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1168,
+        -32
+      ],
+      "id": "aa542a0f-b3e9-49aa-8cec-95fb720b7bb9",
+      "name": "Check results"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        -80
+      ],
+      "id": "dc2e2399-1cf5-40cd-9e7c-f56c58a9e557",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1584,
+        -80
+      ],
+      "id": "1b9b0eec-4264-472e-ba4d-79424e9b1b77",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "1VQ3iQ_L-6Zf9_yvQ6KK5rwvEXZy2yzU8S_OFuUzE-tc"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        16
+      ],
+      "id": "68f5046a-11c6-406a-a2b4-79e0ae89de37",
+      "name": "Get resume content",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "iB5zeQeRExZdtZh1",
+          "name": "Google Docs account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"newResumeContent\": {\n    \"ProfessionalSummary\": \"\",\n    \"CoreSkills\": \"\",\n    \"listOfProjects\": \"\",\n    \"ProfessionalExperience\": \"\"\n  },\n  \"jobProposalforUpwork\": \"\",\n  \"draftEmailAddress\": \"\",\n  \"draftEmailSubject\": \"\",\n  \"draftEmailBody\": \"\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2176,
+        224
+      ],
+      "id": "bc7d8943-06eb-4c03-8964-db754140f3df",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        224
+      ],
+      "id": "0e4ba776-440e-47d9-bc1c-a960548962ab",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "AiKf8s8wWvWS7cE5",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert resume analyst, ATS optimization specialist, and job-application assistant.  \nYour job is to take a resume, a job title, and a job description, then generate tailored outputs following strict rules.\n\n---------------------------------------\nINPUTS YOU WILL USE\n---------------------------------------\n\nJOB TITLE:\n{{ $('Loop Over Items').item.json['0'].job_title }}\n\nRESUME CONTENT:\n{{ $json.content }}\n\nJOB DESCRIPTION:\n{{ $('Loop Over Items').item.json['0'].job_description }}\n\nJOB POST URL:\n{{ $('Loop Over Items').item.json['0'].job_apply_link }}\n\n---------------------------------------\nTASKS\n---------------------------------------\n\n1. Compare the resume to the job post and job title.\n2. Rewrite the resume content to be ATS-friendly** and highly optimized for the given job post.  \n   - Incorporate keywords from the job description.  \n   - Keep wording professional, concise, and quantifiable when possible.  \n   - Do NOT fabricate experience; strengthen what exists.  \n   - Split the new resume content into these sections, **in paragraph format**, but use **bullets where clarity is needed**:  \n     - `\"ProfessionalSummary\"`: 2–4 sentences summarizing expertise and value.  \n     - `\"CoreSkills\"`: Present as a short paragraph, then optionally list key skills with bullets.  \n     - `\"listOfProjects\"`: Describe projects in short paragraphs, include bullets for key achievements or outcomes.  \n     - `\"ProfessionalExperience\"`: Summarize each role in paragraph format, adding bullets for main responsibilities and measurable achievements.\n\n3. Check if the job post includes an email address.\n   - If yes, create a polished email application draft including:  \n     - `\"draftEmailAddress\"`  \n     - `\"draftEmailSubject\"`  \n     - `\"draftEmailBody\"`\n\n4. Check if the job post url contains an Upwork job link.\n   - If yes, write a compelling Upwork proposal tailored to the job:  \n     - `\"jobProposalforUpwork\"`\n\n5. Return all results strictly in this JSON format with no extra text:\n\n{\n  \"newResumeContent\": {\n    \"ProfessionalSummary\": \"\",\n    \"CoreSkills\": \"\",\n    \"listOfProjects\": \"\",\n    \"ProfessionalExperience\": \"\"\n  },\n  \"jobProposalforUpwork\": \"\",\n  \"draftEmailAddress\": \"\",\n  \"draftEmailSubject\": \"\",\n  \"draftEmailBody\": \"\"\n}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2000,
+        16
+      ],
+      "id": "6d04e834-894b-47b9-9b4c-a2fa68cea0ad",
+      "name": "Create resume content and proposal"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "=Resume for  {{ $('Loop Over Items').item.json['0'].job_title }}-{{ $now.toFormat('MM/dd/yyyy') }}",
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "1CyvNGg4wYjkdFJoYuMNyDcRCgJ702HQN",
+            "mode": "list",
+            "cachedResultName": "Resume",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/1CyvNGg4wYjkdFJoYuMNyDcRCgJ702HQN"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2336,
+        -64
+      ],
+      "id": "d8404b1c-d49d-456e-84f3-cb9bac876be6",
+      "name": "Search files and folders",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iDrTM1HDoUXIGlGo",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "631f32b4-54b3-435a-867b-c5b378d5259c",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        2560,
+        16
+      ],
+      "id": "551358bc-bce0-4b82-9d2b-381dcb69bc02",
+      "name": "Resume exists?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2768,
+        16
+      ],
+      "id": "2fcc0c28-4042-4fa0-8e89-a8ffd88f3784",
+      "name": "Wait",
+      "webhookId": "a7ba4e30-8a60-4f19-b210-612c7c183fe3"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1-cn_yMuf-KdUXEriz1u2IxxTtzZPGmuUabq11FDYWb4"
+        },
+        "name": "=Resume for  {{ $('Loop Over Items').item.json['0'].job_title }}-{{ $now.toFormat('MM/dd/yyyy') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2976,
+        16
+      ],
+      "id": "2b6a1f61-2cc6-411c-a11f-cb9a6247b5a2",
+      "name": "Copy resume template",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iDrTM1HDoUXIGlGo",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3184,
+        16
+      ],
+      "id": "ece62d71-0a83-4fbd-8bef-416443425447",
+      "name": "Wait1",
+      "webhookId": "9a7fe483-39b1-403d-b76c-1f1181daad45"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $('Copy resume template').item.json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "{{ProfessionalSummary}}",
+              "replaceText": "={{ $('Create resume content and proposal').item.json.output.newResumeContent.ProfessionalSummary }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{CoreSkills}}",
+              "replaceText": "={{ $('Create resume content and proposal').item.json.output.newResumeContent.CoreSkills }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{listOfProjects}}",
+              "replaceText": "={{ $('Create resume content and proposal').item.json.output.newResumeContent.listOfProjects }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{ProfessionalExperience}}",
+              "replaceText": "={{ $('Create resume content and proposal').item.json.output.newResumeContent.ProfessionalExperience }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        16
+      ],
+      "id": "d2e84e80-dc32-4b63-99bb-67883d6c0a6f",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "iB5zeQeRExZdtZh1",
+          "name": "Google Docs account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e275d1ae-4560-425b-b9b7-af934e964c85",
+              "leftValue": "={{ $('Create resume content and proposal').item.json.output.draftEmailAddress }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3600,
+        16
+      ],
+      "id": "33c986ba-438c-4f2b-974d-302db56ac909",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Create resume content and proposal').item.json.output.draftEmailSubject }}",
+        "message": "={{ $('Create resume content and proposal').item.json.output.draftEmailBody }}",
+        "options": {
+          "sendTo": "={{ $('Create resume content and proposal').item.json.output.draftEmailAddress }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3808,
+        -80
+      ],
+      "id": "187f1bd1-fe25-4807-aaa3-248180f4a0bf",
+      "name": "Create an email draft",
+      "webhookId": "502e6064-e479-4f25-a4f3-6da6be662567",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PJFavcDvtCcVCrKd",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BGPF0U5KR",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "text": "=Job Title: {{ $('Loop Over Items').item.json['0'].job_title }}\nJob Application Url: {{ $('Loop Over Items').item.json['0'].job_apply_link }} \nOptimized Resume: https://docs.google.com/document/d/{{ $('Update a document').item.json.documentId }}/\n{{ $('Create resume content and proposal').item.json.output.jobProposalforUpwork ? `Upwork Proposal: ${$('Create resume content and proposal').item.json.output.jobProposalforUpwork}` : '' }}\n{{ $json.message && $json.message.id ? `Email Draft: https://mail.google.com/mail/u/0/#inbox/${$json.message.id}` : '' }}\n\n\n",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        4016,
+        -80
+      ],
+      "id": "73aa4b1a-b12e-491a-a7d2-f52ca0b53aef",
+      "name": "Send details to job channel",
+      "webhookId": "2dfcb8f4-548e-4ae6-a4d0-0ec3ced84685",
+      "credentials": {
+        "slackApi": {
+          "id": "K5fFmtucIq1L2JPC",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Slack Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check if the query is valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if the query is valid": {
+      "main": [
+        [
+          {
+            "node": "Check if query is valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send searching for jobs": {
+      "main": [
+        [
+          {
+            "node": "Get all jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if query is valid?": {
+      "main": [
+        [
+          {
+            "node": "Send searching for jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all jobs": {
+      "main": [
+        [
+          {
+            "node": "Check results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check results": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get resume content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get resume content": {
+      "main": [
+        [
+          {
+            "node": "Create resume content and proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Create resume content and proposal",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Create resume content and proposal",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create resume content and proposal": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Resume exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume exists?": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Copy resume template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy resume template": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a document": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create an email draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send details to job channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an email draft": {
+      "main": [
+        [
+          {
+            "node": "Send details to job channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send details to job channel": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4ba1ad6b-02ea-460f-a797-683965ae1f28",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5f198d2bd3575ff67af8ed9ab0f3b3af60e4a2f536755adb968fd58ab0f620aa"
+  },
+  "nodeGroups": [],
+  "id": "iwf7BDACrp4LD0bl",
+  "tags": []
+}
