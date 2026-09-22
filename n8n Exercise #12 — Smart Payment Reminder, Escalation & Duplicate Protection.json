@@ -1,0 +1,608 @@
+{
+  "name": "n8n Exercise #12 — Smart Payment Reminder, Escalation & Duplicate Protection",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1632,
+        32
+      ],
+      "id": "e8d0a249-6a32-4121-b215-663c4beca3be",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1184,
+        32
+      ],
+      "id": "6eb17363-ddc0-4f10-8d57-777af0f4f0d8",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.required_reminder }}",
+                    "rightValue": "FIRST",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ba662ad1-06f4-48ba-a17d-aa16d617f57b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "First Reminder"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "17947de0-3c56-465c-b7cf-8a5b861d800a",
+                    "leftValue": "={{ $json.required_reminder }}",
+                    "rightValue": "SECOND",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Second Reminder"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d37b9b53-d6f4-4ba9-82ab-ffae6dee2254",
+                    "leftValue": "={{ $json.required_reminder }}",
+                    "rightValue": "FINAL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Final Reminder"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -528,
+        112
+      ],
+      "id": "154dd09b-6722-4a60-bddd-bec54399ad9f",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Final Payment Reminder –  {{ $json.invoice_id }}",
+        "message": "=Hi {{ $json.customer }},\n\nThis is our final reminder regarding {{ $json.invoice_id }},\nwhich is currently {{ $json.days_since_initiated }} days overdue.\n\nPlease let us know the status of the payment.\n\nThank you.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        304
+      ],
+      "id": "7ebf71be-2d1c-4cf1-86a0-6f8cff26705a",
+      "name": "Final Reminder",
+      "webhookId": "a90b364b-1f1e-4080-baec-793cca624a12",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=First Payment Reminder –  {{ $json.invoice_id }}",
+        "message": "=Hi {{ $json.customer }},\n\nThis is our first reminder regarding {{ $json.invoice_id }},\nwhich is currently {{ $json.days_since_initiated }} days overdue.\n\nPlease let us know the status of the payment.\n\nThank you.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        -32
+      ],
+      "id": "9e943cbf-392f-4b1b-8f4e-94dafc7b2319",
+      "name": "First Reminder",
+      "webhookId": "a90b364b-1f1e-4080-baec-793cca624a12",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Second Payment Reminder –  {{ $json.invoice_id }}",
+        "message": "=Hi {{ $json.customer }},\n\nThis is our second reminder regarding {{ $json.invoice_id }},\nwhich is currently {{ $json.days_since_initiated }} days overdue.\n\nPlease let us know the status of the payment.\n\nThank you.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        144
+      ],
+      "id": "8eb4e756-8f0f-426d-a561-876db18c9364",
+      "name": "Second Reminder",
+      "webhookId": "a90b364b-1f1e-4080-baec-793cca624a12",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IQfuvWWe4hTh0z2E",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Fb1CqS9mvvnvrVJVJOExupEursiBsyqV7Q0mcIpeitg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1014994703,
+          "mode": "list",
+          "cachedResultName": "Copy of Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Fb1CqS9mvvnvrVJVJOExupEursiBsyqV7Q0mcIpeitg/edit#gid=1014994703"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "PENDING"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1440,
+        32
+      ],
+      "id": "e3eee44a-621d-45af-9d73-97a3429d163a",
+      "name": "Get pending payments",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get initiated date\nconst initiatedDate = new Date($json.initiated_date);\n\n// Get today's date\nconst today = new Date();\n\n// Validate initiated date\nif (isNaN(initiatedDate.getTime())) {\n  throw new Error(`Invalid initiated_date: ${$json.initiated_date}`);\n}\n\n// Compare dates only\ninitiatedDate.setHours(0, 0, 0, 0);\ntoday.setHours(0, 0, 0, 0);\n\n// Calculate days since initiated\nconst difference = today - initiatedDate;\n\nconst daysSinceInitiated = Math.floor(\n  difference / (1000 * 60 * 60 * 24)\n);\n\n// Get the reminder already sent\nconst currentReminder = (\n  $json.reminder_level || ''\n).trim().toUpperCase();\n\n// Determine which reminder should be sent now\nlet requiredReminder = '';\n\nif (daysSinceInitiated >= 14) {\n  requiredReminder = 'FINAL';\n} else if (daysSinceInitiated >= 7) {\n  requiredReminder = 'SECOND';\n} else if (daysSinceInitiated >= 3) {\n  requiredReminder = 'FIRST';\n}\n\n// Duplicate protection\nlet sendReminder = false;\n\nif (requiredReminder === 'FIRST' && currentReminder === '') {\n  sendReminder = true;\n}\n\nif (\n  requiredReminder === 'SECOND' &&\n  currentReminder !== 'SECOND' &&\n  currentReminder !== 'FINAL'\n) {\n  sendReminder = true;\n}\n\nif (\n  requiredReminder === 'FINAL' &&\n  currentReminder !== 'FINAL'\n) {\n  sendReminder = true;\n}\n\n// Return results\nreturn {\n  json: {\n    ...$json,\n    days_since_initiated: Math.max(0, daysSinceInitiated),\n    required_reminder: requiredReminder,\n    send_reminder: sendReminder\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        160
+      ],
+      "id": "0631a139-ba61-4f95-99aa-4d060dc47b84",
+      "name": "Determine days overdue"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6cee8b58-f200-43fd-8ea4-3e9a359f1ea5",
+              "leftValue": "={{ $json.send_reminder }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -784,
+        208
+      ],
+      "id": "23201b27-541b-4571-876c-1e2563d0c758",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Fb1CqS9mvvnvrVJVJOExupEursiBsyqV7Q0mcIpeitg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1014994703,
+          "mode": "list",
+          "cachedResultName": "Copy of Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Fb1CqS9mvvnvrVJVJOExupEursiBsyqV7Q0mcIpeitg/edit#gid=1014994703"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": 0,
+            "invoice_id": "={{ $('Determine days overdue').item.json.invoice_id }}",
+            "followup_sent": "={{ $('Data Prep').item.json.followup_sent }}",
+            "reminder_level": "={{ $json.reminder_level }}"
+          },
+          "matchingColumns": [
+            "invoice_id"
+          ],
+          "schema": [
+            {
+              "id": "invoice_id",
+              "displayName": "invoice_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "customer",
+              "displayName": "customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "initiated_date",
+              "displayName": "initiated_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "followup_sent",
+              "displayName": "followup_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reminder_level",
+              "displayName": "reminder_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16,
+        416
+      ],
+      "id": "83ae8ff4-060f-4f54-8b5a-90f5b554a0fb",
+      "name": "Update invoice status",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rOvNWFTbB1uDBujB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9a3b46e-e97b-4aaf-bea6-52d3e1d64de0",
+              "name": "reminder_level",
+              "value": "={{ $('Determine days overdue').item.json.required_reminder }}",
+              "type": "string"
+            },
+            {
+              "id": "1e23ccbe-29f5-43d5-8c1a-f4697c6e26be",
+              "name": "followup_sent",
+              "value": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -32,
+        160
+      ],
+      "id": "ee5922ef-e5ef-4304-a11b-9a373de9a4d4",
+      "name": "Data Prep"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get pending payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Determine days overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "First Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Second Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Final Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Reminder": {
+      "main": [
+        [
+          {
+            "node": "Data Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Second Reminder": {
+      "main": [
+        [
+          {
+            "node": "Data Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Reminder": {
+      "main": [
+        [
+          {
+            "node": "Data Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get pending payments": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine days overdue": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update invoice status": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Prep": {
+      "main": [
+        [
+          {
+            "node": "Update invoice status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ca218733-15f8-46d0-ac99-76ed910d1fb4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "10076ffa38d207e8af7b3bfaa909d8edf6b78dadbb75bf662a7af753bfe2f084"
+  },
+  "nodeGroups": [],
+  "id": "IviGDQQZxKaawTTE",
+  "tags": []
+}

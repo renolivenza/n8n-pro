@@ -1,0 +1,339 @@
+{
+  "name": "n8n Exercise #11 — Scheduled API Sync with Supabase + Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -960,
+        -272
+      ],
+      "id": "7f65ae98-e523-40d2-9e34-94b65cce0660",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://jsonplaceholder.typicode.com/todos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -736,
+        -272
+      ],
+      "id": "3a9bbaa3-55f9-4797-8f39-8bb220377916",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tasks",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "external_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.external_ID }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -240
+      ],
+      "id": "a9da784b-d957-48e1-b1e9-291950ca115e",
+      "name": "Get many rows",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "CWkxrXaStGhF72IG",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8d9b2101-8afe-461f-96d8-b1fa99adbbf9",
+              "leftValue": "={{ $json.id.toString() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        128,
+        -272
+      ],
+      "id": "a91e20d8-1e9e-4198-91e0-18fff5d1e5de",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "tableId": "tasks",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $('Loop Over Items').item.json.Title }}"
+            },
+            {
+              "fieldId": "completed",
+              "fieldValue": "={{ $('Loop Over Items').item.json['Completed?'] }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Loop Over Items').item.json.userID }}"
+            },
+            {
+              "fieldId": "external_id",
+              "fieldValue": "={{ $('Loop Over Items').item.json.external_ID }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        320,
+        16
+      ],
+      "id": "777b8571-48f2-48f6-93e1-74c597201847",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "CWkxrXaStGhF72IG",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "06799f55-ee9a-462f-a01b-3986307466e5",
+              "name": "Title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "d96b02d4-217f-48d4-9648-6c25c717de83",
+              "name": "Completed?",
+              "value": "={{ $json.completed }}",
+              "type": "boolean"
+            },
+            {
+              "id": "3557fd6b-98d5-479a-a0a1-03213e105bd8",
+              "name": "userID",
+              "value": "={{ $json.userId }}",
+              "type": "number"
+            },
+            {
+              "id": "0a82fa0e-19f5-47c2-be4f-e0a36f280e9c",
+              "name": "external_ID",
+              "value": "={{ $json.id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -560,
+        -256
+      ],
+      "id": "80322118-c7e5-47d4-adbe-154298a98fdc",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -416,
+        0
+      ],
+      "id": "0bf4d3b7-e487-446b-b677-c078add018f0",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "https://app.slack.com/client/T0BCR97R50A/C0C08T2EMND",
+          "mode": "url"
+        },
+        "text": "=New task synced\n\nTask ID: {{ $json.external_id }}\nTitle: {{ $json.title }}\nStatus: {{ $json.completed ? 'Completed' : 'Pending' }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "00fca9f4-53b0-46a9-b92f-f593d6d0e6a9",
+      "name": "Send a message",
+      "webhookId": "405aad60-04b7-4b39-8eac-9e91a037dec3",
+      "credentials": {
+        "slackApi": {
+          "id": "ZjXVQ2hnmnwhpyiS",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "abd94b55-fb97-420c-aebe-146b7fcafb7e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "10076ffa38d207e8af7b3bfaa909d8edf6b78dadbb75bf662a7af753bfe2f084"
+  },
+  "nodeGroups": [],
+  "id": "WGzP10Y8bkZ0nOoW",
+  "tags": []
+}
